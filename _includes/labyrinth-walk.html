@@ -1,0 +1,1237 @@
+jsr drawLabyrinth
+jsr gameInit
+jsr gameLoop
+jmp gameOver
+
+gameLoop:
+  jsr copyPosition
+  jsr readKeys
+  jsr updatePosition
+
+  ;TODO: resetting pressed keys and stored directions
+  LDA #$00 ; neutral value
+  STA $ff ; pressed keys
+  STA $02 ; stored direction
+
+  jsr checkWallCollisions
+
+  jsr drawNewPosition
+  jsr restorePosition
+
+  jsr spinWheels
+  jmp gameLoop
+
+gameInit:
+  LDA #$03
+  STA $00
+
+  ; robot start position: use $0200 for (0,0) and $05ff for (31,31)
+  ; data is stored as little endian, so don't forget to swap the bytes
+  LDA #$00
+  STA $10
+  LDA #$02
+  STA $11
+
+  ;TODO: resetting pressed keys and stored directions
+  LDA #$00 ; neutral value
+  STA $ff ; pressed keys
+  STA $02 ; stored direction
+
+  jsr copyPosition
+  jsr drawNewPosition
+  RTS
+
+checkWallCollisions:
+  LDY #$00
+  LDA ($12),Y
+  
+  CMP #$01
+  BEQ collision
+
+  RTS
+
+drawNewPosition:
+  ; mark previous field black:$00 or yellow:$07
+  LDA #$07 ; color of previous field
+  LDY #$00
+  STA ($10),Y
+
+  ; draw new position
+  LDA $00
+  LDY #$00
+  STA ($12),Y
+
+  LDA #$03
+  STA $00
+
+  RTS
+
+copyPosition:
+  lda $10
+  sta $12
+  lda $11
+  sta $13
+  rts
+
+restorePosition:
+  lda $12
+  sta $10
+  lda $13
+  sta $11
+  rts
+
+updatePosition:
+
+  ;now determine where to move the robot.
+  ;lsr: Logical Shift Right. Shift all bits in register A one bit to the right
+  ;the bit that "falls off" is stored in the carry flag
+  lda $02
+
+  lsr
+  bcs up    ;if a 1 "fell off", we started with bin 0001, so the robot needs to go up
+  lsr
+  bcs right ;if a 1 "fell off", we started with bin 0010, so the robot needs to go right
+  lsr
+  bcs down  ;if a 1 "fell off", we started with bin 0100, so the robot needs to go down
+  lsr
+  bcs left  ;if a 1 "fell off", we started with bin 1000, so the robot needs to go left
+  rts
+
+up:
+  lda $12   ;load the least significant byte into register A
+  sec       ;set carry flag
+  sbc #$20  ;Subtract with Carry: If overflow occurs the carry bit is clear.
+  sta $12
+  bcc upup
+  rts
+
+upup:
+  dec $13   ;decrement the most significant byte
+  lda #$1   ;load hex value $1 into register A
+  cmp $13   ;if in strip 1, we overflowed.
+  beq collision
+  rts
+
+right:
+  inc $12   ;increment least significant byte
+  lda #$1f  ;load value hex $1f into register A
+  bit $12   ;AND value with hex $1f (bin 11111)
+  beq collision ;branch to collision if zero flag is set
+  rts       ;return
+
+down: 
+  lda $12   ;load the least significant byte in register A
+  clc       ;clear carry flag
+  adc #$20  ;add hex $20 to register A and set the carry flag on overflow
+  sta $12
+  bcs downdown ;if the carry flag is set, we ran out of current strip
+  rts
+
+downdown:
+  inc $13   ;increment most significant byte
+  lda #$6   ;load the value hex $6 into the A register
+  cmp $13   ;if the most significant byte equals to 6, we're off
+  beq collision ;collision with the bottom of the screen
+  rts
+ 
+left:
+  dec $12   ;decrement least significant byte
+  lda $12
+  and #$1f  ;AND the value hex $1f (binary 11111) with the value in register A
+  cmp #$1f  ;compare the ANDed value above with binary 11111.
+  beq collision ;collision with left border of the screen
+  rts
+
+collision:
+  LDA #$0e
+  STA $00
+
+  jsr copyPosition
+  rts
+
+;functions to read pressed keys and write them to $02
+readKeys:
+  ; address $ff in the zero page contains the key pressed
+  lda $ff
+
+  cmp #$77
+  beq upKey
+  cmp #$64
+  beq rightKey
+  cmp #$73
+  beq downKey
+  cmp #$61
+  beq leftKey
+
+  rts
+ 
+upKey:
+  lda #1
+  sta $02
+  rts
+
+rightKey:
+  lda #2
+  sta $02
+  rts
+ 
+downKey:
+  lda #4
+  sta $02
+  rts
+ 
+leftKey:
+  lda #8
+  sta $02
+  rts
+ 
+illegalMove:
+  rts
+
+;slow the game down by wasting cycles
+spinWheels:
+  ldx #0
+spinloop:
+  nop
+  nop
+  dex
+  bne spinloop
+  rts
+
+gameOver:
+  brk
+
+drawLabyrinth:
+LDX #$01 ; wall
+LDA #$00 ; floor
+
+STA $0200
+STX $0201
+STX $0202
+STA $0203
+STX $0204
+STA $0205
+STA $0206
+STA $0207
+STA $0208
+STA $0209
+STA $020a
+STA $020b
+STA $020c
+STX $020d
+STA $020e
+STA $020f
+STA $0210
+STA $0211
+STA $0212
+STA $0213
+STA $0214
+STA $0215
+STA $0216
+STA $0217
+STA $0218
+STA $0219
+STX $021a
+STA $021b
+STA $021c
+STA $021d
+STX $021e
+STA $021f
+STA $0220
+STA $0221
+STA $0222
+STA $0223
+STA $0224
+STA $0225
+STX $0226
+STX $0227
+STX $0228
+STX $0229
+STX $022a
+STX $022b
+STA $022c
+STX $022d
+STX $022e
+STX $022f
+STA $0230
+STX $0231
+STX $0232
+STX $0233
+STX $0234
+STX $0235
+STX $0236
+STA $0237
+STX $0238
+STA $0239
+STA $023a
+STA $023b
+STX $023c
+STA $023d
+STA $023e
+STA $023f
+STX $0240
+STX $0241
+STX $0242
+STX $0243
+STX $0244
+STX $0245
+STX $0246
+STA $0247
+STA $0248
+STA $0249
+STA $024a
+STX $024b
+STA $024c
+STA $024d
+STA $024e
+STX $024f
+STX $0250
+STX $0251
+STA $0252
+STA $0253
+STA $0254
+STA $0255
+STX $0256
+STX $0257
+STX $0258
+STX $0259
+STA $025a
+STX $025b
+STX $025c
+STX $025d
+STX $025e
+STA $025f
+STA $0260
+STX $0261
+STA $0262
+STA $0263
+STA $0264
+STA $0265
+STA $0266
+STA $0267
+STX $0268
+STX $0269
+STX $026a
+STX $026b
+STX $026c
+STX $026d
+STA $026e
+STA $026f
+STX $0270
+STX $0271
+STA $0272
+STX $0273
+STX $0274
+STA $0275
+STA $0276
+STX $0277
+STA $0278
+STX $0279
+STA $027a
+STX $027b
+STX $027c
+STA $027d
+STA $027e
+STA $027f
+STA $0280
+STA $0281
+STA $0282
+STX $0283
+STX $0284
+STX $0285
+STA $0286
+STX $0287
+STX $0288
+STX $0289
+STA $028a
+STA $028b
+STA $028c
+STX $028d
+STX $028e
+STA $028f
+STA $0290
+STA $0291
+STA $0292
+STX $0293
+STX $0294
+STX $0295
+STA $0296
+STX $0297
+STA $0298
+STA $0299
+STA $029a
+STX $029b
+STA $029c
+STA $029d
+STX $029e
+STA $029f
+STA $02a0
+STX $02a1
+STA $02a2
+STA $02a3
+STX $02a4
+STX $02a5
+STX $02a6
+STX $02a7
+STA $02a8
+STA $02a9
+STA $02aa
+STX $02ab
+STA $02ac
+STA $02ad
+STX $02ae
+STX $02af
+STX $02b0
+STX $02b1
+STX $02b2
+STX $02b3
+STA $02b4
+STX $02b5
+STA $02b6
+STX $02b7
+STA $02b8
+STX $02b9
+STA $02ba
+STX $02bb
+STA $02bc
+STX $02bd
+STX $02be
+STA $02bf
+STA $02c0
+STX $02c1
+STX $02c2
+STA $02c3
+STA $02c4
+STX $02c5
+STX $02c6
+STA $02c7
+STA $02c8
+STX $02c9
+STX $02ca
+STX $02cb
+STX $02cc
+STA $02cd
+STA $02ce
+STA $02cf
+STA $02d0
+STA $02d1
+STA $02d2
+STA $02d3
+STA $02d4
+STX $02d5
+STA $02d6
+STX $02d7
+STA $02d8
+STX $02d9
+STX $02da
+STX $02db
+STX $02dc
+STX $02dd
+STA $02de
+STA $02df
+STA $02e0
+STA $02e1
+STX $02e2
+STX $02e3
+STA $02e4
+STX $02e5
+STA $02e6
+STA $02e7
+STX $02e8
+STX $02e9
+STA $02ea
+STX $02eb
+STX $02ec
+STX $02ed
+STA $02ee
+STX $02ef
+STX $02f0
+STX $02f1
+STX $02f2
+STA $02f3
+STX $02f4
+STX $02f5
+STA $02f6
+STX $02f7
+STA $02f8
+STA $02f9
+STA $02fa
+STA $02fb
+STA $02fc
+STX $02fd
+STX $02fe
+STA $02ff
+STA $0300
+STX $0301
+STX $0302
+STX $0303
+STX $0304
+STX $0305
+STA $0306
+STX $0307
+STX $0308
+STX $0309
+STA $030a
+STX $030b
+STA $030c
+STX $030d
+STA $030e
+STA $030f
+STA $0310
+STX $0311
+STA $0312
+STA $0313
+STX $0314
+STA $0315
+STA $0316
+STX $0317
+STA $0318
+STX $0319
+STX $031a
+STX $031b
+STA $031c
+STA $031d
+STX $031e
+STA $031f
+STA $0320
+STX $0321
+STA $0322
+STA $0323
+STA $0324
+STA $0325
+STA $0326
+STX $0327
+STA $0328
+STA $0329
+STA $032a
+STA $032b
+STA $032c
+STX $032d
+STX $032e
+STX $032f
+STA $0330
+STX $0331
+STX $0332
+STX $0333
+STX $0334
+STA $0335
+STX $0336
+STX $0337
+STA $0338
+STA $0339
+STX $033a
+STX $033b
+STX $033c
+STA $033d
+STX $033e
+STX $033f
+STA $0340
+STA $0341
+STA $0342
+STX $0343
+STX $0344
+STX $0345
+STX $0346
+STX $0347
+STA $0348
+STX $0349
+STA $034a
+STX $034b
+STA $034c
+STX $034d
+STA $034e
+STA $034f
+STA $0350
+STX $0351
+STX $0352
+STA $0353
+STA $0354
+STA $0355
+STX $0356
+STA $0357
+STA $0358
+STX $0359
+STX $035a
+STA $035b
+STX $035c
+STA $035d
+STA $035e
+STX $035f
+STA $0360
+STX $0361
+STX $0362
+STX $0363
+STA $0364
+STX $0365
+STA $0366
+STA $0367
+STA $0368
+STX $0369
+STX $036a
+STX $036b
+STX $036c
+STX $036d
+STA $036e
+STX $036f
+STA $0370
+STX $0371
+STA $0372
+STA $0373
+STX $0374
+STX $0375
+STX $0376
+STX $0377
+STA $0378
+STA $0379
+STA $037a
+STA $037b
+STX $037c
+STX $037d
+STA $037e
+STA $037f
+STA $0380
+STA $0381
+STA $0382
+STA $0383
+STA $0384
+STA $0385
+STA $0386
+STX $0387
+STA $0388
+STX $0389
+STX $038a
+STA $038b
+STA $038c
+STA $038d
+STA $038e
+STX $038f
+STA $0390
+STX $0391
+STA $0392
+STX $0393
+STX $0394
+STX $0395
+STA $0396
+STA $0397
+STA $0398
+STX $0399
+STX $039a
+STX $039b
+STX $039c
+STX $039d
+STX $039e
+STA $039f
+STX $03a0
+STX $03a1
+STX $03a2
+STX $03a3
+STX $03a4
+STX $03a5
+STX $03a6
+STX $03a7
+STA $03a8
+STA $03a9
+STX $03aa
+STA $03ab
+STX $03ac
+STX $03ad
+STX $03ae
+STX $03af
+STA $03b0
+STX $03b1
+STA $03b2
+STA $03b3
+STA $03b4
+STX $03b5
+STX $03b6
+STA $03b7
+STX $03b8
+STX $03b9
+STA $03ba
+STA $03bb
+STA $03bc
+STX $03bd
+STA $03be
+STA $03bf
+STA $03c0
+STX $03c1
+STX $03c2
+STA $03c3
+STA $03c4
+STA $03c5
+STA $03c6
+STX $03c7
+STX $03c8
+STA $03c9
+STX $03ca
+STA $03cb
+STA $03cc
+STX $03cd
+STX $03ce
+STA $03cf
+STA $03d0
+STX $03d1
+STA $03d2
+STX $03d3
+STA $03d4
+STA $03d5
+STX $03d6
+STA $03d7
+STX $03d8
+STA $03d9
+STA $03da
+STX $03db
+STA $03dc
+STA $03dd
+STA $03de
+STX $03df
+STA $03e0
+STA $03e1
+STA $03e2
+STA $03e3
+STX $03e4
+STX $03e5
+STA $03e6
+STA $03e7
+STX $03e8
+STA $03e9
+STX $03ea
+STX $03eb
+STA $03ec
+STA $03ed
+STX $03ee
+STX $03ef
+STX $03f0
+STX $03f1
+STX $03f2
+STX $03f3
+STX $03f4
+STA $03f5
+STX $03f6
+STA $03f7
+STX $03f8
+STA $03f9
+STX $03fa
+STX $03fb
+STX $03fc
+STX $03fd
+STA $03fe
+STA $03ff
+STA $0400
+STX $0401
+STX $0402
+STX $0403
+STX $0404
+STX $0405
+STX $0406
+STA $0407
+STA $0408
+STA $0409
+STX $040a
+STX $040b
+STX $040c
+STA $040d
+STA $040e
+STA $040f
+STA $0410
+STX $0411
+STX $0412
+STA $0413
+STX $0414
+STA $0415
+STX $0416
+STX $0417
+STX $0418
+STA $0419
+STX $041a
+STA $041b
+STA $041c
+STX $041d
+STX $041e
+STA $041f
+STA $0420
+STX $0421
+STA $0422
+STA $0423
+STA $0424
+STA $0425
+STX $0426
+STX $0427
+STX $0428
+STX $0429
+STX $042a
+STA $042b
+STX $042c
+STX $042d
+STX $042e
+STA $042f
+STX $0430
+STX $0431
+STA $0432
+STA $0433
+STX $0434
+STA $0435
+STA $0436
+STX $0437
+STA $0438
+STA $0439
+STX $043a
+STX $043b
+STA $043c
+STA $043d
+STA $043e
+STA $043f
+STA $0440
+STX $0441
+STA $0442
+STX $0443
+STX $0444
+STA $0445
+STA $0446
+STA $0447
+STX $0448
+STA $0449
+STA $044a
+STA $044b
+STA $044c
+STA $044d
+STX $044e
+STA $044f
+STA $0450
+STA $0451
+STA $0452
+STX $0453
+STX $0454
+STX $0455
+STA $0456
+STX $0457
+STA $0458
+STX $0459
+STX $045a
+STX $045b
+STX $045c
+STX $045d
+STX $045e
+STA $045f
+STA $0460
+STX $0461
+STX $0462
+STX $0463
+STX $0464
+STX $0465
+STX $0466
+STA $0467
+STA $0468
+STA $0469
+STX $046a
+STX $046b
+STA $046c
+STX $046d
+STX $046e
+STX $046f
+STA $0470
+STX $0471
+STX $0472
+STX $0473
+STA $0474
+STX $0475
+STA $0476
+STX $0477
+STA $0478
+STX $0479
+STA $047a
+STA $047b
+STA $047c
+STA $047d
+STX $047e
+STA $047f
+STA $0480
+STA $0481
+STA $0482
+STA $0483
+STA $0484
+STA $0485
+STX $0486
+STX $0487
+STX $0488
+STX $0489
+STX $048a
+STX $048b
+STA $048c
+STA $048d
+STA $048e
+STX $048f
+STA $0490
+STA $0491
+STA $0492
+STA $0493
+STA $0494
+STA $0495
+STA $0496
+STX $0497
+STA $0498
+STX $0499
+STA $049a
+STX $049b
+STX $049c
+STA $049d
+STX $049e
+STA $049f
+STX $04a0
+STX $04a1
+STX $04a2
+STX $04a3
+STX $04a4
+STA $04a5
+STA $04a6
+STA $04a7
+STA $04a8
+STA $04a9
+STA $04aa
+STX $04ab
+STA $04ac
+STX $04ad
+STX $04ae
+STX $04af
+STX $04b0
+STX $04b1
+STX $04b2
+STX $04b3
+STX $04b4
+STX $04b5
+STX $04b6
+STX $04b7
+STA $04b8
+STX $04b9
+STA $04ba
+STX $04bb
+STA $04bc
+STA $04bd
+STX $04be
+STA $04bf
+STA $04c0
+STX $04c1
+STA $04c2
+STX $04c3
+STX $04c4
+STX $04c5
+STX $04c6
+STX $04c7
+STX $04c8
+STX $04c9
+STA $04ca
+STX $04cb
+STA $04cc
+STA $04cd
+STA $04ce
+STA $04cf
+STA $04d0
+STA $04d1
+STA $04d2
+STX $04d3
+STA $04d4
+STA $04d5
+STA $04d6
+STX $04d7
+STA $04d8
+STA $04d9
+STA $04da
+STX $04db
+STA $04dc
+STX $04dd
+STX $04de
+STX $04df
+STA $04e0
+STA $04e1
+STA $04e2
+STA $04e3
+STX $04e4
+STA $04e5
+STA $04e6
+STA $04e7
+STX $04e8
+STX $04e9
+STA $04ea
+STX $04eb
+STA $04ec
+STX $04ed
+STX $04ee
+STA $04ef
+STX $04f0
+STX $04f1
+STA $04f2
+STA $04f3
+STA $04f4
+STX $04f5
+STX $04f6
+STX $04f7
+STA $04f8
+STX $04f9
+STX $04fa
+STX $04fb
+STA $04fc
+STA $04fd
+STA $04fe
+STA $04ff
+STA $0500
+STX $0501
+STX $0502
+STA $0503
+STA $0504
+STA $0505
+STX $0506
+STA $0507
+STA $0508
+STX $0509
+STA $050a
+STX $050b
+STX $050c
+STX $050d
+STA $050e
+STA $050f
+STA $0510
+STX $0511
+STX $0512
+STX $0513
+STX $0514
+STX $0515
+STA $0516
+STA $0517
+STA $0518
+STX $0519
+STA $051a
+STX $051b
+STX $051c
+STX $051d
+STA $051e
+STX $051f
+STA $0520
+STA $0521
+STX $0522
+STX $0523
+STA $0524
+STX $0525
+STX $0526
+STX $0527
+STA $0528
+STX $0529
+STA $052a
+STA $052b
+STA $052c
+STX $052d
+STA $052e
+STX $052f
+STA $0530
+STA $0531
+STA $0532
+STA $0533
+STA $0534
+STA $0535
+STA $0536
+STX $0537
+STA $0538
+STA $0539
+STA $053a
+STX $053b
+STX $053c
+STA $053d
+STA $053e
+STA $053f
+STA $0540
+STX $0541
+STX $0542
+STA $0543
+STA $0544
+STX $0545
+STA $0546
+STA $0547
+STA $0548
+STX $0549
+STX $054a
+STX $054b
+STA $054c
+STX $054d
+STX $054e
+STX $054f
+STX $0550
+STX $0551
+STX $0552
+STA $0553
+STX $0554
+STA $0555
+STX $0556
+STX $0557
+STA $0558
+STX $0559
+STX $055a
+STX $055b
+STA $055c
+STA $055d
+STX $055e
+STA $055f
+STA $0560
+STA $0561
+STX $0562
+STA $0563
+STX $0564
+STX $0565
+STX $0566
+STX $0567
+STX $0568
+STX $0569
+STA $056a
+STX $056b
+STA $056c
+STA $056d
+STA $056e
+STA $056f
+STA $0570
+STA $0571
+STX $0572
+STX $0573
+STX $0574
+STA $0575
+STX $0576
+STX $0577
+STX $0578
+STX $0579
+STA $057a
+STA $057b
+STA $057c
+STX $057d
+STX $057e
+STA $057f
+STX $0580
+STA $0581
+STX $0582
+STA $0583
+STA $0584
+STX $0585
+STX $0586
+STA $0587
+STA $0588
+STA $0589
+STA $058a
+STX $058b
+STX $058c
+STX $058d
+STX $058e
+STX $058f
+STX $0590
+STA $0591
+STA $0592
+STX $0593
+STX $0594
+STA $0595
+STX $0596
+STA $0597
+STA $0598
+STA $0599
+STA $059a
+STX $059b
+STX $059c
+STX $059d
+STA $059e
+STA $059f
+STX $05a0
+STA $05a1
+STX $05a2
+STX $05a3
+STA $05a4
+STA $05a5
+STA $05a6
+STA $05a7
+STX $05a8
+STA $05a9
+STX $05aa
+STX $05ab
+STA $05ac
+STA $05ad
+STA $05ae
+STA $05af
+STX $05b0
+STX $05b1
+STA $05b2
+STA $05b3
+STX $05b4
+STX $05b5
+STX $05b6
+STA $05b7
+STX $05b8
+STX $05b9
+STX $05ba
+STX $05bb
+STA $05bc
+STX $05bd
+STX $05be
+STA $05bf
+STA $05c0
+STA $05c1
+STA $05c2
+STX $05c3
+STX $05c4
+STX $05c5
+STX $05c6
+STX $05c7
+STX $05c8
+STA $05c9
+STA $05ca
+STX $05cb
+STA $05cc
+STX $05cd
+STA $05ce
+STX $05cf
+STX $05d0
+STX $05d1
+STX $05d2
+STA $05d3
+STX $05d4
+STX $05d5
+STA $05d6
+STA $05d7
+STX $05d8
+STX $05d9
+STA $05da
+STA $05db
+STA $05dc
+STA $05dd
+STX $05de
+STA $05df
+STA $05e0
+STX $05e1
+STA $05e2
+STA $05e3
+STA $05e4
+STA $05e5
+STA $05e6
+STA $05e7
+STX $05e8
+STX $05e9
+STA $05ea
+STA $05eb
+STA $05ec
+STX $05ed
+STA $05ee
+STA $05ef
+STA $05f0
+STA $05f1
+STA $05f2
+STA $05f3
+STA $05f4
+STA $05f5
+STA $05f6
+STX $05f7
+STX $05f8
+STA $05f9
+STA $05fa
+STX $05fb
+STX $05fc
+STA $05fd
+STA $05fe
+STA $05ff
+
+; red pixel as target
+LDA #$0a
+STA $05ff
+
+rts
