@@ -34,6 +34,7 @@ You can walk this labyrinth using the `W`, `A`, `S` and `D`.  Enjoy.
 ;
 ; Change direction: W A S D
 ;
+; $00    => color of robot
 ; $02    => direction (1 => up, 2 => right, 4 => down, 8 => left)
 ; $0e-0f => counter for key presses
 ; $10-11 => the current robot position
