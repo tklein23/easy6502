@@ -53,7 +53,8 @@ checkWallCollisions:
 
 drawNewPosition:
   ; mark previous field black:$00 or yellow:$07
-  LDA #$07 ; color of previous field
+  ; green:$05, light green:$0d
+  LDA #$0d
   LDY #$00
   STA ($10),Y
 
