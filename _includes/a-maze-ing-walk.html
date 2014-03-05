@@ -6,6 +6,7 @@ jmp gameOver
 gameLoop:
   jsr copyPosition
   jsr readKeys
+  jsr increaseKeyPressCounter
   jsr updatePosition
 
   ;TODO: resetting pressed keys and stored directions
@@ -187,6 +188,23 @@ leftKey:
  
 illegalMove:
   rts
+
+increaseKeyPressCounter:
+  LDA $02
+  CMP #$00
+  BEQ increaseKeyPressCounterNop
+  INC $0e
+  LDA $0e
+  CMP #$00
+  BEQ increaseKeyPressCounterOverflow
+  RTS
+
+increaseKeyPressCounterOverflow:
+  INC $0f
+  RTS
+
+increaseKeyPressCounterNop:
+  RTS
 
 ;slow the game down by wasting cycles
 spinWheels:
